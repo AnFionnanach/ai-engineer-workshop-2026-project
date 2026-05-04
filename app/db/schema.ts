@@ -1,4 +1,4 @@
-import { sqliteTable, text, integer, real } from "drizzle-orm/sqlite-core";
+import { sqliteTable, text, integer, real, uniqueIndex } from "drizzle-orm/sqlite-core";
 
 export enum UserRole {
   Student = "student",
@@ -28,6 +28,12 @@ export enum TeamMemberRole {
   Member = "member",
 }
 
+export enum PointAction {
+  LessonComplete = "lesson_complete",
+  QuizPass = "quiz_pass",
+  CourseComplete = "course_complete",
+}
+
 // ─── Tables ───
 
 export const users = sqliteTable("users", {
@@ -37,6 +43,7 @@ export const users = sqliteTable("users", {
   role: text("role").notNull().$type<UserRole>(),
   avatarUrl: text("avatar_url"),
   bio: text("bio"),
+  timezone: text("timezone"),
   createdAt: text("created_at")
     .notNull()
     .$defaultFn(() => new Date().toISOString()),
@@ -252,4 +259,40 @@ export const videoWatchEvents = sqliteTable("video_watch_events", {
   createdAt: text("created_at")
     .notNull()
     .$defaultFn(() => new Date().toISOString()),
+});
+
+export const pointEvents = sqliteTable(
+  "point_events",
+  {
+    id: integer("id").primaryKey({ autoIncrement: true }),
+    userId: integer("user_id")
+      .notNull()
+      .references(() => users.id),
+    action: text("action").notNull().$type<PointAction>(),
+    referenceId: integer("reference_id").notNull(),
+    points: integer("points").notNull(),
+    createdAt: text("created_at")
+      .notNull()
+      .$defaultFn(() => new Date().toISOString()),
+  },
+  (table) => [
+    uniqueIndex("point_events_dedup_idx").on(
+      table.userId,
+      table.action,
+      table.referenceId
+    ),
+  ]
+);
+
+export const userStats = sqliteTable("user_stats", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  userId: integer("user_id")
+    .notNull()
+    .unique()
+    .references(() => users.id),
+  totalPoints: integer("total_points").notNull().default(0),
+  currentLevel: integer("current_level").notNull().default(1),
+  currentStreak: integer("current_streak").notNull().default(0),
+  longestStreak: integer("longest_streak").notNull().default(0),
+  lastActivityDate: text("last_activity_date"),
 });
